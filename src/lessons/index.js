@@ -1,0 +1,11 @@
+// Central export file for all lesson modules
+export { renderStickyNotePuzzle } from './stickyNote.js'
+export { renderPasswordPuzzle } from './password.js'
+export { renderMFAPuzzle } from './mfa.js'
+export { renderCleanDeskPuzzle } from './cleanDesk.js'
+export { renderPatchPuzzle } from './patchManagement.js'
+export { renderPhishingPuzzle } from './phishing.js'
+export { renderSocialEngineeringPuzzle } from './socialEngineering.js'
+export { renderUSBPuzzle } from './usbRisk.js'
+export { renderWifiPuzzle } from './publicWifi.js'
+export { renderIncidentReportingPuzzle } from './incidentReporting.js'

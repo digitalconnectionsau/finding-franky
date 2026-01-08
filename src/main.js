@@ -1,6 +1,18 @@
 import './style.css'
 import { analytics } from './firebase.js'
 import { logEvent } from 'firebase/analytics'
+import {
+  renderStickyNotePuzzle,
+  renderPasswordPuzzle,
+  renderMFAPuzzle,
+  renderCleanDeskPuzzle,
+  renderPatchPuzzle,
+  renderPhishingPuzzle,
+  renderSocialEngineeringPuzzle,
+  renderUSBPuzzle,
+  renderWifiPuzzle,
+  renderIncidentReportingPuzzle
+} from './lessons/index.js'
 
 // ===== GAME STATE =====
 const gameState = {
@@ -16,14 +28,14 @@ const gameState = {
   lessons: {
     stickyNote: {
       id: 'stickyNote',
-      title: 'Physical Security & Credential Protection',
+      title: 'Physical Security',
       description: 'Safeguarding physical workspace credentials',
       zone: 'desk',
       completed: false
     },
     passwordStrength: {
       id: 'passwordStrength',
-      title: 'Password Complexity and Strength',
+      title: 'Passwords',
       description: 'Constructing resilient passphrases',
       zone: 'desk',
       completed: false
@@ -44,14 +56,14 @@ const gameState = {
     },
     patchManagement: {
       id: 'patchManagement',
-      title: 'Patch Management & Software Updates',
+      title: 'Patching & Software Updates',
       description: 'The importance of timely system maintenance',
       zone: 'boardroom',
       completed: false
     },
     phishing: {
       id: 'phishing',
-      title: 'Phishing Awareness & Email Literacy',
+      title: 'Phishing',
       description: 'Identifying and scrutinizing malicious communications',
       zone: 'desk',
       completed: false
@@ -65,14 +77,14 @@ const gameState = {
     },
     usbRisk: {
       id: 'usbRisk',
-      title: 'Risks of Removable Media',
+      title: 'Removable Media',
       description: 'Safe handling of unknown USB devices',
       zone: 'boardroom',
       completed: false
     },
     publicWifi: {
       id: 'publicWifi',
-      title: 'Secure Remote Connectivity (Public Wi-Fi vs. VPN)',
+      title: 'Public Wi-Fi',
       description: 'Ensuring data integrity outside the office',
       zone: 'cafe',
       completed: false
@@ -99,19 +111,6 @@ const gameState = {
   ]
 }
 
-// ===== LLAMA HINTS =====
-const llamaHints = [
-  "Tick tock, kid. Time's not your friend in this business.",
-  "You missed something. Check the desk more carefully.",
-  "That sticky note isn't just bad practice - it's a disaster waiting to happen.",
-  "Frankie wouldn't leave without securing the network first. Keep looking.",
-  "The boardroom holds secrets. Corporate types always leave a mess.",
-  "Public Wi-Fi at a cafe? Might as well broadcast your password on the news.",
-  "MFA isn't optional anymore. It's the difference between secure and sorry.",
-  "Those USB drives? They're not gifts. They're trojan horses.",
-  "You're running out of time. Focus on what matters.",
-  "The decryption terminal is your roadmap. Watch it closely."
-]
 
 // ===== INITIALIZATION =====
 function initGame() {
@@ -224,6 +223,9 @@ function renderGameUI() {
     
     <!-- Elevator Button -->
     <div class="elevator-button" id="elevator-btn">🛗</div>
+    
+    <!-- Phone Button -->
+    <div class="phone-button" id="phone-btn">📱</div>
   `
   
   updateDecryptionTerminal()
@@ -242,6 +244,9 @@ function setupEventListeners() {
   
   // Elevator button
   document.getElementById('elevator-btn').addEventListener('click', openElevator)
+  
+  // Phone button
+  document.getElementById('phone-btn').addEventListener('click', openPhone)
   
   // Terminal toggle
   document.getElementById('terminal-toggle').addEventListener('click', toggleTerminal)
@@ -301,6 +306,51 @@ function switchZone(zoneName) {
   logEvent(analytics, 'zone_visit', {
     zone_name: zoneName,
     time_elapsed: 1800 - gameState.timeRemaining
+  })
+}
+
+// ===== PHONE SYSTEM =====
+function openPhone() {
+  const overlay = document.createElement('div')
+  overlay.className = 'phone-overlay active'
+  overlay.innerHTML = `
+    <div class="phone-device">
+      <div class="phone-screen">
+        <div class="phone-header">
+          <div class="phone-time">${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+          <div class="phone-status">🔋 📶 📡</div>
+        </div>
+        
+        <div class="phone-content">
+          <h2>Apps</h2>
+          <div class="app-grid" id="app-grid">
+            <!-- Apps will be added here later -->
+            <div class="app-placeholder">
+              <div class="app-icon">📱</div>
+              <div class="app-name">No apps yet</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="phone-footer">
+          <button class="phone-home-btn" id="phone-close">⬤</button>
+        </div>
+      </div>
+    </div>
+  `
+  
+  document.body.appendChild(overlay)
+  
+  // Close button
+  overlay.querySelector('#phone-close').addEventListener('click', () => {
+    overlay.remove()
+  })
+  
+  // Click outside to close
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      overlay.remove()
+    }
   })
 }
 
@@ -491,7 +541,7 @@ function openPuzzle(lessonId) {
   }
   
   if (puzzles[lessonId]) {
-    puzzles[lessonId](lesson)
+    puzzles[lessonId](lesson, gameState, completePuzzle, resumeTimer)
   }
 }
 
@@ -535,769 +585,6 @@ function completePuzzle(lessonId) {
   })
 }
 
-// ===== INDIVIDUAL PUZZLES =====
-
-function renderStickyNotePuzzle(lesson) {
-  const modal = createModal(`
-    <h2>🔍 ${lesson.title}</h2>
-    <p>You found a sticky note on the desk with a password written on it: <strong>Admin123</strong></p>
-    
-    <div class="quiz-question">
-      <h3>Why is this a security risk?</h3>
-      <div class="quiz-options" id="quiz-options">
-        <button class="quiz-option" data-correct="false">
-          It's fine - it's a strong password
-        </button>
-        <button class="quiz-option" data-correct="true">
-          Physical access to credentials bypasses all digital security
-        </button>
-        <button class="quiz-option" data-correct="false">
-          Sticky notes are encrypted
-        </button>
-        <button class="quiz-option" data-correct="false">
-          The password is too complex to remember
-        </button>
-      </div>
-    </div>
-    
-    <div id="feedback"></div>
-    
-    <div class="modal-buttons">
-      <button class="btn-secondary" id="close-btn">CANCEL</button>
-    </div>
-  `)
-  
-  modal.querySelectorAll('.quiz-option').forEach(option => {
-    option.addEventListener('click', function() {
-      // Disable all options after click
-      modal.querySelectorAll('.quiz-option').forEach(opt => {
-        opt.style.pointerEvents = 'none'
-      })
-      
-      const isCorrect = this.getAttribute('data-correct') === 'true'
-      
-      if (isCorrect) {
-        this.classList.add('correct')
-        modal.querySelector('#feedback').innerHTML = `
-          <div class="feedback-message success">
-            Correct! Physical security is the first line of defense. 
-            No password should ever be written down where others can see it.
-          </div>
-        `
-        setTimeout(() => {
-          completePuzzle(lesson.id)
-          closeModal(modal)
-        }, 2000)
-      } else {
-        this.classList.add('incorrect')
-        modal.querySelector('#feedback').innerHTML = `
-          <div class="feedback-message error">
-            Incorrect. Try again. (Time penalty applied)
-          </div>
-        `
-        gameState.timeRemaining -= 15
-        setTimeout(() => {
-          // Re-enable options
-          modal.querySelectorAll('.quiz-option').forEach(opt => {
-            opt.style.pointerEvents = 'auto'
-            opt.classList.remove('incorrect')
-          })
-          modal.querySelector('#feedback').innerHTML = ''
-        }, 2000)
-      }
-    })
-  })
-  
-  modal.querySelector('#close-btn').addEventListener('click', () => closeModal(modal))
-}
-
-function renderPasswordPuzzle(lesson) {
-  const modal = createModal(`
-    <h2>🔐 ${lesson.title}</h2>
-    <p>Create a strong password for the network admin account.</p>
-    <p style="font-size: 0.9rem; color: var(--text-secondary);">
-      Requirements: Minimum 12 characters, uppercase, lowercase, numbers, and symbols
-    </p>
-    
-    <input type="text" class="input-field" id="password-input" placeholder="Enter password...">
-    
-    <div class="password-strength-meter">
-      <div class="password-strength-bar" id="strength-bar"></div>
-    </div>
-    <div id="strength-feedback" style="color: var(--text-secondary); margin-bottom: 20px;"></div>
-    
-    <div id="feedback"></div>
-    
-    <div class="modal-buttons">
-      <button class="btn-secondary" id="close-btn">CANCEL</button>
-      <button class="btn-primary" id="submit-btn" disabled>SUBMIT</button>
-    </div>
-  `)
-  
-  const input = modal.querySelector('#password-input')
-  const strengthBar = modal.querySelector('#strength-bar')
-  const strengthFeedback = modal.querySelector('#strength-feedback')
-  const submitBtn = modal.querySelector('#submit-btn')
-  
-  input.addEventListener('input', function() {
-    const password = this.value
-    const strength = calculatePasswordStrength(password)
-    
-    strengthBar.className = 'password-strength-bar'
-    
-    if (strength.score === 0) {
-      strengthFeedback.textContent = 'Very Weak'
-    } else if (strength.score === 1) {
-      strengthBar.classList.add('strength-weak')
-      strengthFeedback.textContent = 'Weak - Add more characters and variety'
-    } else if (strength.score === 2) {
-      strengthBar.classList.add('strength-medium')
-      strengthFeedback.textContent = 'Medium - Getting better'
-    } else if (strength.score === 3) {
-      strengthBar.classList.add('strength-good')
-      strengthFeedback.textContent = 'Good - Almost there'
-    } else {
-      strengthBar.classList.add('strength-strong')
-      strengthFeedback.textContent = '✓ Strong - Excellent password'
-      submitBtn.disabled = false
-    }
-  })
-  
-  submitBtn.addEventListener('click', () => {
-    completePuzzle(lesson.id)
-    closeModal(modal)
-  })
-  
-  modal.querySelector('#close-btn').addEventListener('click', () => closeModal(modal))
-}
-
-function calculatePasswordStrength(password) {
-  let score = 0
-  
-  if (password.length >= 12) score++
-  if (/[a-z]/.test(password)) score++
-  if (/[A-Z]/.test(password)) score++
-  if (/[0-9]/.test(password)) score++
-  if (/[^a-zA-Z0-9]/.test(password)) score++
-  
-  return { score: Math.min(score, 4) }
-}
-
-function renderMFAPuzzle(lesson) {
-  const randomCode = Math.floor(100000 + Math.random() * 900000)
-  
-  const modal = createModal(`
-    <h2>📱 ${lesson.title}</h2>
-    <p>A login attempt was detected from an unknown device. 
-    Your authentication app shows this code:</p>
-    
-    <div style="text-align: center; padding: 20px; background: rgba(0,0,0,0.5); 
-                border-radius: 10px; margin: 20px 0;">
-      <div style="font-family: 'Orbitron', monospace; font-size: 2.5rem; 
-                  color: var(--neon-green); text-shadow: 0 0 10px var(--neon-green);">
-        ${randomCode}
-      </div>
-      <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 10px;">
-        Expires in 30 seconds
-      </div>
-    </div>
-    
-    <input type="text" class="input-field" id="mfa-input" 
-           placeholder="Enter 6-digit code..." maxlength="6">
-    
-    <div id="feedback"></div>
-    
-    <div class="modal-buttons">
-      <button class="btn-secondary" id="close-btn">CANCEL</button>
-      <button class="btn-primary" id="verify-btn">VERIFY</button>
-    </div>
-  `)
-  
-  modal.querySelector('#verify-btn').addEventListener('click', () => {
-    const input = modal.querySelector('#mfa-input').value
-    
-    if (input === randomCode.toString()) {
-      modal.querySelector('#feedback').innerHTML = `
-        <div class="feedback-message success">
-          ✓ Authentication successful! MFA prevents unauthorized access even if passwords are compromised.
-        </div>
-      `
-      setTimeout(() => {
-        completePuzzle(lesson.id)
-        closeModal(modal)
-      }, 2000)
-    } else {
-      modal.querySelector('#feedback').innerHTML = `
-        <div class="feedback-message error">
-          ❌ Invalid code. Check the displayed number carefully.
-        </div>
-      `
-      gameState.timeRemaining -= 10
-    }
-  })
-  
-  modal.querySelector('#close-btn').addEventListener('click', () => closeModal(modal))
-}
-
-function renderCleanDeskPuzzle(lesson) {
-  const modal = createModal(`
-    <h2>📄 ${lesson.title}</h2>
-    <p>You found sensitive documents left on the boardroom table. 
-    Secure them properly using drag and drop.</p>
-    
-    <div class="drag-drop-container">
-      <div class="drop-zone" id="insecure-zone">
-        <h3>⚠️ Insecure Locations</h3>
-        <div class="draggable-item" draggable="true" data-item="pii">
-          Employee PII Documents
-        </div>
-        <div class="draggable-item" draggable="true" data-item="financial">
-          Financial Reports
-        </div>
-        <div class="draggable-item" draggable="true" data-item="credentials">
-          Network Credentials
-        </div>
-      </div>
-      
-      <div class="drop-zone" id="secure-zone">
-        <h3>🔒 Locked File Cabinet</h3>
-      </div>
-    </div>
-    
-    <div id="feedback"></div>
-    
-    <div class="modal-buttons">
-      <button class="btn-secondary" id="close-btn">CANCEL</button>
-      <button class="btn-primary" id="check-btn" disabled>CHECK SECURITY</button>
-    </div>
-  `)
-  
-  const insecureZone = modal.querySelector('#insecure-zone')
-  const secureZone = modal.querySelector('#secure-zone')
-  const checkBtn = modal.querySelector('#check-btn')
-  
-  let draggedItem = null
-  
-  modal.querySelectorAll('.draggable-item').forEach(item => {
-    item.addEventListener('dragstart', function() {
-      draggedItem = this
-      this.classList.add('dragging')
-    })
-    
-    item.addEventListener('dragend', function() {
-      this.classList.remove('dragging')
-    })
-  })
-  
-  ;[insecureZone, secureZone].forEach(zone => {
-    zone.addEventListener('dragover', (e) => {
-      e.preventDefault()
-    })
-    
-    zone.addEventListener('drop', function(e) {
-      e.preventDefault()
-      if (draggedItem && !draggedItem.matches('h3')) {
-        this.appendChild(draggedItem)
-        
-        // Check if all items are in secure zone
-        if (secureZone.querySelectorAll('.draggable-item').length === 3) {
-          checkBtn.disabled = false
-          secureZone.classList.add('valid')
-        } else {
-          checkBtn.disabled = true
-          secureZone.classList.remove('valid')
-        }
-      }
-    })
-  })
-  
-  checkBtn.addEventListener('click', () => {
-    modal.querySelector('#feedback').innerHTML = `
-      <div class="feedback-message success">
-        ✓ Excellent! All sensitive documents secured. A clean desk policy prevents data breaches.
-      </div>
-    `
-    setTimeout(() => {
-      completePuzzle(lesson.id)
-      closeModal(modal)
-    }, 2000)
-  })
-  
-  modal.querySelector('#close-btn').addEventListener('click', () => closeModal(modal))
-}
-
-function renderPatchPuzzle(lesson) {
-  const modal = createModal(`
-    <h2>💻 ${lesson.title}</h2>
-    <p>The server shows several pending updates. Which should be prioritized?</p>
-    
-    <div class="quiz-question">
-      <h3>Select all critical updates:</h3>
-      <div class="quiz-options" id="quiz-options">
-        <button class="quiz-option" data-critical="true">
-          Security Patch - CVE-2024-0001 (Critical)
-        </button>
-        <button class="quiz-option" data-critical="false">
-          UI Theme Update
-        </button>
-        <button class="quiz-option" data-critical="true">
-          Firewall Security Update
-        </button>
-        <button class="quiz-option" data-critical="false">
-          New Emoji Pack
-        </button>
-      </div>
-    </div>
-    
-    <div id="feedback"></div>
-    
-    <div class="modal-buttons">
-      <button class="btn-secondary" id="close-btn">CANCEL</button>
-      <button class="btn-primary" id="submit-btn">INSTALL SELECTED</button>
-    </div>
-  `)
-  
-  const selectedOptions = new Set()
-  
-  modal.querySelectorAll('.quiz-option').forEach((option, index) => {
-    option.addEventListener('click', function() {
-      if (this.classList.contains('selected')) {
-        this.classList.remove('selected')
-        selectedOptions.delete(index)
-      } else {
-        this.classList.add('selected')
-        selectedOptions.add(index)
-      }
-    })
-  })
-  
-  modal.querySelector('#submit-btn').addEventListener('click', () => {
-    const allOptions = Array.from(modal.querySelectorAll('.quiz-option'))
-    const selectedCritical = Array.from(selectedOptions).filter(idx => 
-      allOptions[idx].getAttribute('data-critical') === 'true'
-    ).length
-    const selectedNonCritical = Array.from(selectedOptions).filter(idx => 
-      allOptions[idx].getAttribute('data-critical') === 'false'
-    ).length
-    
-    if (selectedCritical === 2 && selectedNonCritical === 0) {
-      modal.querySelector('#feedback').innerHTML = `
-        <div class="feedback-message success">
-          ✓ Correct! Security patches close vulnerabilities that hackers exploit. They must be prioritized.
-        </div>
-      `
-      setTimeout(() => {
-        completePuzzle(lesson.id)
-        closeModal(modal)
-      }, 2000)
-    } else {
-      modal.querySelector('#feedback').innerHTML = `
-        <div class="feedback-message error">
-          ❌ Incorrect selection. Focus on security-critical updates only.
-        </div>
-      `
-      gameState.timeRemaining -= 15
-      setTimeout(() => {
-        modal.querySelector('#feedback').innerHTML = ''
-      }, 2000)
-    }
-  })
-  
-  modal.querySelector('#close-btn').addEventListener('click', () => closeModal(modal))
-}
-
-function renderPhishingPuzzle(lesson) {
-  const modal = createModal(`
-    <h2>📧 ${lesson.title}</h2>
-    <p>You received an email. Analyze it carefully.</p>
-    
-    <div style="background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px; 
-                margin: 20px 0; border: 2px solid var(--text-secondary);">
-      <div style="margin-bottom: 10px;">
-        <strong>From:</strong> admin@llama-s0ftware.com
-      </div>
-      <div style="margin-bottom: 10px;">
-        <strong>Subject:</strong> URGENT: Verify Your Account NOW
-      </div>
-      <div style="margin-bottom: 10px;">
-        <strong>Body:</strong>
-      </div>
-      <div style="line-height: 1.8;">
-        Dear Employee,<br><br>
-        Your account will be SUSPENDED in 1 hour unless you verify immediately!<br>
-        Click here: <span style="color: var(--neon-cyan);">http://llama-verify-now.ru/login</span><br><br>
-        Enter your password to confirm.<br><br>
-        - IT Department
-      </div>
-    </div>
-    
-    <div class="quiz-question">
-      <h3>What indicates this is a phishing attempt?</h3>
-      <div class="quiz-options">
-        <button class="quiz-option" data-correct="false">
-          It's from IT Department
-        </button>
-        <button class="quiz-option" data-correct="true">
-          Suspicious domain (.ru), urgency tactics, requests password
-        </button>
-        <button class="quiz-option" data-correct="false">
-          The formatting looks professional
-        </button>
-      </div>
-    </div>
-    
-    <div id="feedback"></div>
-    
-    <div class="modal-buttons">
-      <button class="btn-secondary" id="close-btn">CANCEL</button>
-    </div>
-  `)
-  
-  modal.querySelectorAll('.quiz-option').forEach(option => {
-    option.addEventListener('click', function() {
-      // Disable all options after click
-      modal.querySelectorAll('.quiz-option').forEach(opt => {
-        opt.style.pointerEvents = 'none'
-      })
-      
-      const isCorrect = this.getAttribute('data-correct') === 'true'
-      
-      if (isCorrect) {
-        this.classList.add('correct')
-        modal.querySelector('#feedback').innerHTML = `
-          <div class="feedback-message success">
-            ✓ Correct! Red flags: Mismatched domain, urgency, password request. Always verify sender.
-          </div>
-        `
-        setTimeout(() => {
-          completePuzzle(lesson.id)
-          closeModal(modal)
-        }, 2000)
-      } else {
-        this.classList.add('incorrect')
-        modal.querySelector('#feedback').innerHTML = `
-          <div class="feedback-message error">
-            Incorrect. Look for red flags: domain, urgency, password requests. (Time penalty)
-          </div>
-        `
-        gameState.timeRemaining -= 15
-        setTimeout(() => {
-          modal.querySelectorAll('.quiz-option').forEach(opt => {
-            opt.style.pointerEvents = 'auto'
-            opt.classList.remove('incorrect')
-          })
-          modal.querySelector('#feedback').innerHTML = ''
-        }, 2000)
-      }
-    })
-  })
-  
-  modal.querySelector('#close-btn').addEventListener('click', () => closeModal(modal))
-}
-
-function renderSocialEngineeringPuzzle(lesson) {
-  const modal = createModal(`
-    <h2>📞 ${lesson.title}</h2>
-    <p>You receive a phone call:</p>
-    
-    <div style="background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px; 
-                margin: 20px 0; border: 2px solid var(--warning);">
-      <p style="font-style: italic; line-height: 1.8;">
-        "Hi, this is David from IT. We're doing emergency maintenance and need your 
-        login credentials to update your account. Can you provide your password and 
-        MFA code right now? It's urgent."
-      </p>
-    </div>
-    
-    <div class="quiz-question">
-      <h3>What should you do?</h3>
-      <div class="quiz-options">
-        <button class="quiz-option" data-correct="false">
-          Provide the information - it's IT
-        </button>
-        <button class="quiz-option" data-correct="true">
-          Refuse and report to IT - legitimate IT never asks for passwords
-        </button>
-        <button class="quiz-option" data-correct="false">
-          Give just the password but not MFA
-        </button>
-      </div>
-    </div>
-    
-    <div id="feedback"></div>
-    
-    <div class="modal-buttons">
-      <button class="btn-secondary" id="close-btn">CANCEL</button>
-    </div>
-  `)
-  
-  modal.querySelectorAll('.quiz-option').forEach(option => {
-    option.addEventListener('click', function() {
-      // Disable all options after click
-      modal.querySelectorAll('.quiz-option').forEach(opt => {
-        opt.style.pointerEvents = 'none'
-      })
-      
-      const isCorrect = this.getAttribute('data-correct') === 'true'
-      
-      if (isCorrect) {
-        this.classList.add('correct')
-        modal.querySelector('#feedback').innerHTML = `
-          <div class="feedback-message success">
-            ✓ Correct! Never share credentials over phone. IT will never ask for passwords or MFA codes.
-          </div>
-        `
-        setTimeout(() => {
-          completePuzzle(lesson.id)
-          closeModal(modal)
-        }, 2000)
-      } else {
-        this.classList.add('incorrect')
-        modal.querySelector('#feedback').innerHTML = `
-          <div class="feedback-message error">
-            Incorrect. Legitimate IT never asks for passwords. (Time penalty)
-          </div>
-        `
-        gameState.timeRemaining -= 15
-        setTimeout(() => {
-          modal.querySelectorAll('.quiz-option').forEach(opt => {
-            opt.style.pointerEvents = 'auto'
-            opt.classList.remove('incorrect')
-          })
-          modal.querySelector('#feedback').innerHTML = ''
-        }, 2000)
-      }
-    })
-  })
-  
-  modal.querySelector('#close-btn').addEventListener('click', () => closeModal(modal))
-}
-
-function renderUSBPuzzle(lesson) {
-  const modal = createModal(`
-    <h2>💾 ${lesson.title}</h2>
-    <p>You found an unmarked USB drive in the boardroom labeled "Q4 Financials".</p>
-    
-    <div class="quiz-question">
-      <h3>What should you do?</h3>
-      <div class="quiz-options">
-        <button class="quiz-option" data-correct="false">
-          Plug it in to see what's on it
-        </button>
-        <button class="quiz-option" data-correct="true">
-          Report it to IT - unknown USB devices can contain malware
-        </button>
-        <button class="quiz-option" data-correct="false">
-          Use it if it looks official
-        </button>
-        <button class="quiz-option" data-correct="false">
-          Scan it with antivirus first, then use
-        </button>
-      </div>
-    </div>
-    
-    <div id="feedback"></div>
-    
-    <div class="modal-buttons">
-      <button class="btn-secondary" id="close-btn">CANCEL</button>
-    </div>
-  `)
-  
-  modal.querySelectorAll('.quiz-option').forEach(option => {
-    option.addEventListener('click', function() {
-      // Disable all options after click
-      modal.querySelectorAll('.quiz-option').forEach(opt => {
-        opt.style.pointerEvents = 'none'
-      })
-      
-      const isCorrect = this.getAttribute('data-correct') === 'true'
-      
-      if (isCorrect) {
-        this.classList.add('correct')
-        modal.querySelector('#feedback').innerHTML = `
-          <div class="feedback-message success">
-            ✓ Correct! Unknown USB devices are a common attack vector. Never plug in unknown media.
-          </div>
-        `
-        setTimeout(() => {
-          completePuzzle(lesson.id)
-          closeModal(modal)
-        }, 2000)
-      } else {
-        this.classList.add('incorrect')
-        modal.querySelector('#feedback').innerHTML = `
-          <div class="feedback-message error">
-            Incorrect. Unknown USB devices can contain malware. (Time penalty)
-          </div>
-        `
-        gameState.timeRemaining -= 15
-        setTimeout(() => {
-          modal.querySelectorAll('.quiz-option').forEach(opt => {
-            opt.style.pointerEvents = 'auto'
-            opt.classList.remove('incorrect')
-          })
-          modal.querySelector('#feedback').innerHTML = ''
-        }, 2000)
-      }
-    })
-  })
-  
-  modal.querySelector('#close-btn').addEventListener('click', () => closeModal(modal))
-}
-
-function renderWifiPuzzle(lesson) {
-  const modal = createModal(`
-    <h2>📡 ${lesson.title}</h2>
-    <p>You're working from the cafe. Available Wi-Fi networks:</p>
-    
-    <div style="background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px; margin: 20px 0;">
-      <div style="margin-bottom: 15px; padding: 10px; border: 2px solid var(--text-secondary); border-radius: 5px;">
-        📶 "Free_Public_WiFi" (No password)
-      </div>
-      <div style="margin-bottom: 15px; padding: 10px; border: 2px solid var(--text-secondary); border-radius: 5px;">
-        📶 "Llama_Corp_VPN" (Requires company credentials)
-      </div>
-      <div style="margin-bottom: 15px; padding: 10px; border: 2px solid var(--text-secondary); border-radius: 5px;">
-        📶 "Cafe_Guest" (No password)
-      </div>
-    </div>
-    
-    <div class="quiz-question">
-      <h3>Which is safe for company work?</h3>
-      <div class="quiz-options">
-        <button class="quiz-option" data-correct="false">
-          Free_Public_WiFi - it's convenient
-        </button>
-        <button class="quiz-option" data-correct="true">
-          Llama_Corp_VPN - encrypted company connection
-        </button>
-        <button class="quiz-option" data-correct="false">
-          Cafe_Guest - it's provided by the cafe
-        </button>
-      </div>
-    </div>
-    
-    <div id="feedback"></div>
-    
-    <div class="modal-buttons">
-      <button class="btn-secondary" id="close-btn">CANCEL</button>
-    </div>
-  `)
-  
-  modal.querySelectorAll('.quiz-option').forEach(option => {
-    option.addEventListener('click', function() {
-      // Disable all options after click
-      modal.querySelectorAll('.quiz-option').forEach(opt => {
-        opt.style.pointerEvents = 'none'
-      })
-      
-      const isCorrect = this.getAttribute('data-correct') === 'true'
-      
-      if (isCorrect) {
-        this.classList.add('correct')
-        modal.querySelector('#feedback').innerHTML = `
-          <div class="feedback-message success">
-            ✓ Correct! Always use company VPN on public networks. Public Wi-Fi is unencrypted.
-          </div>
-        `
-        setTimeout(() => {
-          completePuzzle(lesson.id)
-          closeModal(modal)
-        }, 2000)
-      } else {
-        this.classList.add('incorrect')
-        modal.querySelector('#feedback').innerHTML = `
-          <div class="feedback-message error">
-            Incorrect. Public Wi-Fi is insecure without VPN. (Time penalty)
-          </div>
-        `
-        gameState.timeRemaining -= 15
-        setTimeout(() => {
-          modal.querySelectorAll('.quiz-option').forEach(opt => {
-            opt.style.pointerEvents = 'auto'
-            opt.classList.remove('incorrect')
-          })
-          modal.querySelector('#feedback').innerHTML = ''
-        }, 2000)
-      }
-    })
-  })
-  
-  modal.querySelector('#close-btn').addEventListener('click', () => closeModal(modal))
-}
-
-function renderIncidentReportingPuzzle(lesson) {
-  const modal = createModal(`
-    <h2>🚨 ${lesson.title}</h2>
-    <p>You noticed suspicious activity: Someone tried to access the server room without authorization.</p>
-    
-    <div class="quiz-question">
-      <h3>What should you do immediately?</h3>
-      <div class="quiz-options">
-        <button class="quiz-option" data-correct="false">
-          Ignore it - security will notice
-        </button>
-        <button class="quiz-option" data-correct="true">
-          Report immediately to IT Security (Canary IT)
-        </button>
-        <button class="quiz-option" data-correct="false">
-          Wait until your next team meeting to mention it
-        </button>
-        <button class="quiz-option" data-correct="false">
-          Investigate it yourself first
-        </button>
-      </div>
-    </div>
-    
-    <div id="feedback"></div>
-    
-    <div class="modal-buttons">
-      <button class="btn-secondary" id="close-btn">CANCEL</button>
-    </div>
-  `)
-  
-  modal.querySelectorAll('.quiz-option').forEach(option => {
-    option.addEventListener('click', function() {
-      // Disable all options after click
-      modal.querySelectorAll('.quiz-option').forEach(opt => {
-        opt.style.pointerEvents = 'none'
-      })
-      
-      const isCorrect = this.getAttribute('data-correct') === 'true'
-      
-      if (isCorrect) {
-        this.classList.add('correct')
-        modal.querySelector('#feedback').innerHTML = `
-          <div class="feedback-message success">
-            ✓ Correct! Immediate reporting is critical. Speed of response depends on speed of reporting.
-          </div>
-        `
-        setTimeout(() => {
-          completePuzzle(lesson.id)
-          closeModal(modal)
-        }, 2000)
-      } else {
-        this.classList.add('incorrect')
-        modal.querySelector('#feedback').innerHTML = `
-          <div class="feedback-message error">
-            Incorrect. Security incidents require immediate reporting. (Time penalty)
-          </div>
-        `
-        gameState.timeRemaining -= 15
-        setTimeout(() => {
-          modal.querySelectorAll('.quiz-option').forEach(opt => {
-            opt.style.pointerEvents = 'auto'
-            opt.classList.remove('incorrect')
-          })
-          modal.querySelector('#feedback').innerHTML = ''
-        }, 2000)
-      }
-    })
-  })
-  
-  modal.querySelector('#close-btn').addEventListener('click', () => closeModal(modal))
-}
-
 // ===== DECRYPTION SYSTEM =====
 function updateDecryptionTerminal() {
   const terminal = document.getElementById('encrypted-message')
@@ -1335,21 +622,6 @@ function decryptLine(line) {
 function addDecryptionFragment(index) {
   gameState.decryptedFragments.push(index)
   updateDecryptionTerminal()
-}
-
-// ===== LLAMA HINTS =====
-function showLlamaHint(index) {
-  const hint = document.getElementById('llama-hint')
-  const message = document.getElementById('llama-message')
-  
-  if (!hint || !message) return
-  
-  message.textContent = llamaHints[index]
-  hint.classList.add('active')
-  
-  setTimeout(() => {
-    hint.classList.remove('active')
-  }, 5000)
 }
 
 // ===== FEEDBACK SYSTEM =====

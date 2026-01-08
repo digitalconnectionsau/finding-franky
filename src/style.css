@@ -409,6 +409,170 @@ body::before {
   transform: scale(1.05);
 }
 
+/* ===== PHONE SYSTEM ===== */
+.phone-button {
+  position: fixed;
+  bottom: 30px;
+  left: 130px;
+  width: 80px;
+  height: 80px;
+  background: var(--card-bg);
+  border: 3px solid var(--neon-cyan);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--neon-cyan);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+  transition: all 0.3s ease;
+  z-index: 101;
+}
+
+.phone-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+}
+
+.phone-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.phone-overlay.active {
+  display: flex;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.phone-device {
+  background: #1a1a1a;
+  border: 8px solid #0a0a0a;
+  border-radius: 30px;
+  box-shadow: 0 0 50px rgba(0, 255, 255, 0.3), inset 0 0 20px rgba(0, 0, 0, 0.8);
+  width: 700px;
+  max-width: 90vw;
+  overflow: hidden;
+  position: relative;
+}
+
+.phone-screen {
+  background: linear-gradient(135deg, #0a0a0a, #1a1a2e);
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 22px;
+  overflow: hidden;
+}
+
+.phone-header {
+  padding: 15px 25px;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+}
+
+.phone-time {
+  font-weight: 600;
+}
+
+.phone-status {
+  display: flex;
+  gap: 10px;
+  font-size: 1rem;
+}
+
+.phone-content {
+  flex: 1;
+  padding: 30px;
+  overflow-y: auto;
+}
+
+.phone-content h2 {
+  font-family: 'Orbitron', monospace;
+  color: var(--neon-cyan);
+  margin-bottom: 25px;
+  font-size: 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 25px;
+  margin-top: 20px;
+}
+
+.app-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px dashed rgba(0, 255, 255, 0.3);
+  border-radius: 15px;
+  color: var(--text-secondary);
+  font-family: 'Share Tech Mono', monospace;
+  text-align: center;
+}
+
+.app-icon {
+  font-size: 3rem;
+  opacity: 0.5;
+}
+
+.app-name {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.phone-footer {
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-top: 1px solid rgba(0, 255, 255, 0.1);
+}
+
+.phone-home-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(255, 0, 255, 0.2));
+  border: 3px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+.phone-home-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.3), rgba(255, 0, 255, 0.3));
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -437,6 +601,10 @@ body::before {
   max-height: 80vh;
   overflow-y: auto;
   box-shadow: 0 0 50px rgba(255, 0, 255, 0.5);
+}
+
+.modal-content.modal-wide {
+  max-width: 900px;
 }
 
 .modal-content h2 {
@@ -623,6 +791,7 @@ body::before {
   letter-spacing: 0.1em;
   transition: all 0.3s ease;
   box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+  margin-left: 15px;
 }
 
 .btn-primary:hover {
