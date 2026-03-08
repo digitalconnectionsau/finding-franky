@@ -50,7 +50,7 @@ body::before {
     transparent 2px
   );
   pointer-events: none;
-  z-index: 9999;
+  z-index: 1;
 }
 
 #app {
@@ -67,9 +67,26 @@ body::before {
   width: 100%;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 20px;
   z-index: 100;
   background: linear-gradient(180deg, rgba(10, 10, 15, 0.95) 0%, transparent 100%);
+}
+
+.hud-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.zone-indicator {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.9rem;
+  color: var(--neon-magenta);
+  text-shadow: 0 0 5px var(--neon-magenta);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
 }
 
 .timer {
@@ -232,6 +249,13 @@ body::before {
   border: 2px solid transparent;
   padding: 10px;
   border-radius: 8px;
+}
+
+.hotspot:focus-visible {
+  outline: 3px solid var(--neon-magenta);
+  outline-offset: 4px;
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.6);
 }
 
 .hotspot:hover {
@@ -437,6 +461,40 @@ body::before {
   max-height: 80vh;
   overflow-y: auto;
   box-shadow: 0 0 50px rgba(255, 0, 255, 0.5);
+  position: relative;
+  scrollbar-width: none;            /* Firefox */
+  -ms-overflow-style: none;         /* IE/Edge */
+}
+
+.modal-content::-webkit-scrollbar {
+  display: none;                    /* Chrome/Safari */
+}
+
+/* Neon down-arrow scroll indicator */
+.modal-content::after {
+  content: '\25BE';                /* ▾ */
+  position: sticky;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: block;
+  text-align: center;
+  font-size: 1.4rem;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px var(--neon-cyan);
+  pointer-events: none;
+  animation: scrollHintBounce 1.5s ease-in-out infinite;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.modal-content.can-scroll::after {
+  opacity: 1;
+}
+
+@keyframes scrollHintBounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(6px); }
 }
 
 .modal-content h2 {
@@ -646,7 +704,6 @@ body::before {
   cursor: pointer;
   border-radius: 8px;
   transition: all 0.3s ease;
-  margin-left: 10px;
 }
 
 .btn-secondary:hover {
@@ -658,6 +715,7 @@ body::before {
 .modal-buttons {
   display: flex;
   justify-content: flex-end;
+  gap: 15px;
   margin-top: 30px;
 }
 
@@ -1003,6 +1061,10 @@ body::before {
   .hud {
     flex-direction: column;
     gap: 10px;
+  }
+  
+  .hud-right {
+    align-items: center;
   }
   
   .timer {

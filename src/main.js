@@ -1,6 +1,25 @@
 import './style.css'
 import { analytics } from './firebase.js'
-import { logEvent } from 'firebase/analytics'
+import { logEvent as _logEvent } from 'firebase/analytics'
+
+// Safe analytics wrapper — no-op if analytics isn't ready (SSR / blocked)
+function safeLogEvent(eventName, params) {
+  if (analytics) _logEvent(analytics, eventName, params)
+}
+
+// ===== HELPERS =====
+function clampTime() {
+  if (gameState.timeRemaining < 0) gameState.timeRemaining = 0
+}
+
+// Track active puzzle intervals (e.g. MFA timer) so Escape can clean them up
+const activePuzzleIntervals = new Set()
+
+function registerPuzzleInterval(id) { activePuzzleIntervals.add(id) }
+function clearPuzzleIntervals() {
+  activePuzzleIntervals.forEach(id => clearInterval(id))
+  activePuzzleIntervals.clear()
+}
 
 // ===== GAME STATE =====
 const gameState = {
@@ -11,7 +30,7 @@ const gameState = {
   awarenessPoints: 0,
   completedLessons: new Set(),
   decryptedFragments: [],
-  serverCode: '1337', // The secret code to access Level 17
+  serverCode: ((n) => n.toString())(1337), // Derived at runtime
   
   lessons: {
     stickyNote: {
@@ -125,7 +144,7 @@ function startGame() {
   switchZone('desk')
   
   // Track game start
-  logEvent(analytics, 'game_start', {
+  safeLogEvent('game_start', {
     game_name: 'Finding Frankie',
     timestamp: new Date().toISOString()
   })
@@ -162,8 +181,11 @@ function renderGameUI() {
     <!-- HUD -->
     <div class="hud">
       <div class="timer" id="timer">30:00</div>
-      <div class="awareness-counter">
-        AWARENESS POINTS: <span id="awareness-count">0</span> / 10
+      <div class="hud-right">
+        <div class="zone-indicator" id="zone-indicator">FLOOR 20 — DESK</div>
+        <div class="awareness-counter">
+          AWARENESS POINTS: <span id="awareness-count">0</span> / 10
+        </div>
       </div>
     </div>
     
@@ -223,7 +245,13 @@ function renderGameUI() {
     </div>
     
     <!-- Elevator Button -->
-    <div class="elevator-button" id="elevator-btn">🛗</div>
+    <div class="elevator-button" id="elevator-btn" tabindex="0" role="button" aria-label="Open elevator">🛗</div>
+    
+    <!-- Llama Hint -->
+    <div class="llama-hint" id="llama-hint">
+      <div class="character">🦙</div>
+      <div class="message" id="llama-message"></div>
+    </div>
   `
   
   updateDecryptionTerminal()
@@ -232,19 +260,43 @@ function renderGameUI() {
 
 // ===== EVENT LISTENERS =====
 function setupEventListeners() {
-  // Hotspot clicks
+  // Hotspot clicks + keyboard support
   document.querySelectorAll('.hotspot').forEach(hotspot => {
+    hotspot.setAttribute('tabindex', '0')
+    hotspot.setAttribute('role', 'button')
     hotspot.addEventListener('click', function() {
       const lessonId = this.getAttribute('data-lesson')
       openPuzzle(lessonId)
     })
+    hotspot.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        const lessonId = this.getAttribute('data-lesson')
+        openPuzzle(lessonId)
+      }
+    })
   })
   
   // Elevator button
-  document.getElementById('elevator-btn').addEventListener('click', openElevator)
+  const elevatorBtn = document.getElementById('elevator-btn')
+  elevatorBtn.addEventListener('click', openElevator)
+  elevatorBtn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openElevator() }
+  })
   
   // Terminal toggle
   document.getElementById('terminal-toggle').addEventListener('click', toggleTerminal)
+  
+  // Keyboard: Escape to close overlays
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      clearPuzzleIntervals()
+      document.querySelector('.modal-overlay.active')?.remove()
+      document.querySelector('.elevator-overlay.active')?.remove()
+      document.querySelector('.keypad-overlay.active')?.remove()
+      resumeTimer()
+    }
+  })
 }
 
 // ===== TIMER SYSTEM =====
@@ -256,6 +308,7 @@ function startTimer() {
       
       // Check for game over
       if (gameState.timeRemaining <= 0) {
+        gameState.timeRemaining = 0
         endGame(false)
       }
     }
@@ -288,6 +341,8 @@ function resumeTimer() {
 }
 
 // ===== ZONE SWITCHING =====
+const zoneLabels = { desk: 'FLOOR 20 — DESK', boardroom: 'FLOOR 19 — BOARDROOM', cafe: 'GROUND — CAFE' }
+
 function switchZone(zoneName) {
   gameState.currentZone = zoneName
   
@@ -297,8 +352,16 @@ function switchZone(zoneName) {
   
   document.getElementById(`zone-${zoneName}`).classList.add('active')
   
+  // Update zone indicator
+  const indicator = document.getElementById('zone-indicator')
+  if (indicator) indicator.textContent = zoneLabels[zoneName] || zoneName.toUpperCase()
+  
+  // Show a contextual llama hint
+  const hintIndex = { desk: 1, boardroom: 4, cafe: 5 }
+  if (hintIndex[zoneName] !== undefined) showLlamaHint(hintIndex[zoneName])
+  
   // Track zone visit
-  logEvent(analytics, 'zone_visit', {
+  safeLogEvent('zone_visit', {
     zone_name: zoneName,
     time_elapsed: 1800 - gameState.timeRemaining
   })
@@ -458,7 +521,8 @@ function openServerRoomKeypad() {
         code = ''
         display.textContent = ''
       }, 1000)
-      gameState.timeRemaining -= 30 // Penalty
+      gameState.timeRemaining -= 30
+      clampTime()
     }
   })
   
@@ -498,8 +562,24 @@ function openPuzzle(lessonId) {
 function createModal(content) {
   const modal = document.createElement('div')
   modal.className = 'modal-overlay active'
+  modal.setAttribute('role', 'dialog')
+  modal.setAttribute('aria-modal', 'true')
   modal.innerHTML = `<div class="modal-content">${content}</div>`
   document.body.appendChild(modal)
+  // Focus first interactive element
+  const firstBtn = modal.querySelector('button, input, [tabindex]')
+  if (firstBtn) setTimeout(() => firstBtn.focus(), 50)
+  
+  // Scroll-arrow indicator: show arrow when content is scrollable, hide at bottom
+  const mc = modal.querySelector('.modal-content')
+  function checkScroll() {
+    const canScroll = mc.scrollHeight - mc.scrollTop - mc.clientHeight > 10
+    mc.classList.toggle('can-scroll', canScroll)
+  }
+  mc.addEventListener('scroll', checkScroll)
+  // Check after content renders
+  setTimeout(checkScroll, 100)
+  
   return modal
 }
 
@@ -526,8 +606,13 @@ function completePuzzle(lessonId) {
   // Show success feedback
   showFeedback('success', `✓ ${lesson.title} - SECURED`)
   
+  // Show llama hint for this completion
+  if (gameState.awarenessPoints <= llamaHints.length) {
+    showLlamaHint(gameState.awarenessPoints - 1)
+  }
+  
   // Track puzzle completion
-  logEvent(analytics, 'puzzle_complete', {
+  safeLogEvent('puzzle_complete', {
     lesson_id: lessonId,
     lesson_title: lesson.title,
     awareness_points: gameState.awarenessPoints,
@@ -596,6 +681,7 @@ function renderStickyNotePuzzle(lesson) {
           </div>
         `
         gameState.timeRemaining -= 15
+        clampTime()
         setTimeout(() => {
           // Re-enable options
           modal.querySelectorAll('.quiz-option').forEach(opt => {
@@ -697,7 +783,7 @@ function renderMFAPuzzle(lesson) {
                   color: var(--neon-green); text-shadow: 0 0 10px var(--neon-green);">
         ${randomCode}
       </div>
-      <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 10px;">
+      <div id="mfa-countdown" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 10px;">
         Expires in 30 seconds
       </div>
     </div>
@@ -733,10 +819,34 @@ function renderMFAPuzzle(lesson) {
         </div>
       `
       gameState.timeRemaining -= 10
+      clampTime()
     }
   })
   
-  modal.querySelector('#close-btn').addEventListener('click', () => closeModal(modal))
+  // MFA countdown timer (actually expires)
+  let mfaTimeLeft = 30
+  const countdownEl = modal.querySelector('#mfa-countdown')
+  const mfaTimer = setInterval(() => {
+    mfaTimeLeft--
+    if (countdownEl) countdownEl.textContent = `Expires in ${mfaTimeLeft} seconds`
+    if (mfaTimeLeft <= 0) {
+      clearInterval(mfaTimer)
+      activePuzzleIntervals.delete(mfaTimer)
+      modal.querySelector('#feedback').innerHTML = `
+        <div class="feedback-message error">
+          ⏰ Code expired! Time penalty applied.
+        </div>
+      `
+      gameState.timeRemaining -= 15
+      clampTime()
+      setTimeout(() => closeModal(modal), 2000)
+    }
+  }, 1000)
+  registerPuzzleInterval(mfaTimer)
+  
+  // Clean up timer if modal is closed early
+  const origClose = modal.querySelector('#close-btn')
+  origClose.addEventListener('click', () => { clearInterval(mfaTimer); closeModal(modal) })
 }
 
 function renderCleanDeskPuzzle(lesson) {
@@ -823,7 +933,86 @@ function renderCleanDeskPuzzle(lesson) {
     }, 2000)
   })
   
+  // Touch support for drag and drop
+  addTouchDragSupport(modal)
+  
   modal.querySelector('#close-btn').addEventListener('click', () => closeModal(modal))
+}
+
+// ===== TOUCH DRAG & DROP =====
+function addTouchDragSupport(container) {
+  let draggedItem = null
+  let touchOffsetX = 0
+  let touchOffsetY = 0
+  let placeholder = null
+  
+  container.querySelectorAll('.draggable-item').forEach(item => {
+    item.addEventListener('touchstart', function(e) {
+      draggedItem = this
+      const touch = e.touches[0]
+      const rect = this.getBoundingClientRect()
+      touchOffsetX = touch.clientX - rect.left
+      touchOffsetY = touch.clientY - rect.top
+      this.classList.add('dragging')
+      
+      // Create placeholder
+      placeholder = this.cloneNode(true)
+      placeholder.style.opacity = '0.3'
+      placeholder.style.pointerEvents = 'none'
+      this.parentNode.insertBefore(placeholder, this.nextSibling)
+      
+      // Make item follow touch
+      this.style.position = 'fixed'
+      this.style.zIndex = '10000'
+      this.style.width = rect.width + 'px'
+      this.style.left = (touch.clientX - touchOffsetX) + 'px'
+      this.style.top = (touch.clientY - touchOffsetY) + 'px'
+    }, { passive: true })
+    
+    item.addEventListener('touchmove', function(e) {
+      if (!draggedItem) return
+      e.preventDefault()
+      const touch = e.touches[0]
+      this.style.left = (touch.clientX - touchOffsetX) + 'px'
+      this.style.top = (touch.clientY - touchOffsetY) + 'px'
+    }, { passive: false })
+    
+    item.addEventListener('touchend', function(e) {
+      if (!draggedItem) return
+      this.classList.remove('dragging')
+      this.style.position = ''
+      this.style.zIndex = ''
+      this.style.width = ''
+      this.style.left = ''
+      this.style.top = ''
+      
+      placeholder?.remove()
+      placeholder = null
+      
+      // Find drop zone under touch point
+      const touch = e.changedTouches[0]
+      const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY)
+      const zone = dropTarget?.closest('.drop-zone')
+      
+      if (zone && !draggedItem.matches('h3')) {
+        zone.appendChild(draggedItem)
+        // Trigger check button logic
+        const secureZone = container.querySelector('#secure-zone')
+        const checkBtn = container.querySelector('#check-btn')
+        if (secureZone && checkBtn) {
+          if (secureZone.querySelectorAll('.draggable-item').length === 3) {
+            checkBtn.disabled = false
+            secureZone.classList.add('valid')
+          } else {
+            checkBtn.disabled = true
+            secureZone.classList.remove('valid')
+          }
+        }
+      }
+      
+      draggedItem = null
+    })
+  })
 }
 
 function renderPatchPuzzle(lesson) {
@@ -897,8 +1086,12 @@ function renderPatchPuzzle(lesson) {
         </div>
       `
       gameState.timeRemaining -= 15
+      clampTime()
       setTimeout(() => {
         modal.querySelector('#feedback').innerHTML = ''
+        // Re-enable selection after wrong answer
+        modal.querySelectorAll('.quiz-option').forEach(opt => opt.classList.remove('selected'))
+        selectedOptions.clear()
       }, 2000)
     }
   })
@@ -981,6 +1174,7 @@ function renderPhishingPuzzle(lesson) {
           </div>
         `
         gameState.timeRemaining -= 15
+        clampTime()
         setTimeout(() => {
           modal.querySelectorAll('.quiz-option').forEach(opt => {
             opt.style.pointerEvents = 'auto'
@@ -1059,6 +1253,7 @@ function renderSocialEngineeringPuzzle(lesson) {
           </div>
         `
         gameState.timeRemaining -= 15
+        clampTime()
         setTimeout(() => {
           modal.querySelectorAll('.quiz-option').forEach(opt => {
             opt.style.pointerEvents = 'auto'
@@ -1131,6 +1326,7 @@ function renderUSBPuzzle(lesson) {
           </div>
         `
         gameState.timeRemaining -= 15
+        clampTime()
         setTimeout(() => {
           modal.querySelectorAll('.quiz-option').forEach(opt => {
             opt.style.pointerEvents = 'auto'
@@ -1212,6 +1408,7 @@ function renderWifiPuzzle(lesson) {
           </div>
         `
         gameState.timeRemaining -= 15
+        clampTime()
         setTimeout(() => {
           modal.querySelectorAll('.quiz-option').forEach(opt => {
             opt.style.pointerEvents = 'auto'
@@ -1284,6 +1481,7 @@ function renderIncidentReportingPuzzle(lesson) {
           </div>
         `
         gameState.timeRemaining -= 15
+        clampTime()
         setTimeout(() => {
           modal.querySelectorAll('.quiz-option').forEach(opt => {
             opt.style.pointerEvents = 'auto'
@@ -1333,8 +1531,10 @@ function decryptLine(line) {
 }
 
 function addDecryptionFragment(index) {
-  gameState.decryptedFragments.push(index)
-  updateDecryptionTerminal()
+  if (index < gameState.encryptedMessage.length && !gameState.decryptedFragments.includes(index)) {
+    gameState.decryptedFragments.push(index)
+    updateDecryptionTerminal()
+  }
 }
 
 // ===== LLAMA HINTS =====
@@ -1396,7 +1596,7 @@ function endGame(isVictory) {
   const grade = calculateGrade()
   
   // Track game completion
-  logEvent(analytics, 'game_complete', {
+  safeLogEvent('game_complete', {
     victory: isVictory,
     time_used_seconds: timeUsed,
     awareness_points: gameState.awarenessPoints,
